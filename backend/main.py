@@ -101,7 +101,7 @@ class ComplaintResponse(BaseModel):
         from_attributes = True
 
 
-# Health Check Endpoints
+# Health Check Endpoints for Render
 @app.get("/", status_code=status.HTTP_200_OK)
 @app.get("/health", status_code=status.HTTP_200_OK)
 def health_check():
