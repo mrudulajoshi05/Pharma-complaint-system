@@ -15,6 +15,15 @@ class TestFastAPIEndpoints(unittest.TestCase):
         Base.metadata.create_all(bind=engine)
         cls.client = TestClient(app)
 
+    def test_health_check_endpoint(self):
+        res_root = self.client.get("/")
+        self.assertEqual(res_root.status_code, 200)
+        self.assertEqual(res_root.json()["status"], "healthy")
+
+        res_health = self.client.get("/health")
+        self.assertEqual(res_health.status_code, 200)
+        self.assertEqual(res_health.json()["status"], "healthy")
+
     @patch("backend.main.process_complaint_text")
     def test_extract_endpoint(self, mock_process):
         mock_process.return_value = {

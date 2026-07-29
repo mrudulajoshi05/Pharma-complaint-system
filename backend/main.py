@@ -101,6 +101,17 @@ class ComplaintResponse(BaseModel):
         from_attributes = True
 
 
+# Health Check Endpoints
+@app.get("/", status_code=status.HTTP_200_OK)
+@app.get("/health", status_code=status.HTTP_200_OK)
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "Aivoa Pharma Complaint System API",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+
 # Endpoints
 @app.post("/api/extract", response_model=dict, status_code=status.HTTP_200_OK)
 def extract_complaint(request: ExtractRequest, background_tasks: BackgroundTasks):
