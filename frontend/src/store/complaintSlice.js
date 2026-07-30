@@ -1,16 +1,24 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// Fail-safe API URL builder supporting both local dev and production Vercel + Render deployment
-const getApiEndpoint = (path) => {
-  const envUrl = (import.meta.env.VITE_API_BASE_URL || 'https://pharma-complaint-system.onrender.com').trim();
-  
-  // Clean trailing slashes and any duplicate /api, /extract, or /complaints if present in env string
-  let base = envUrl.replace(/\/+$/, '');
+// Production Live Backend URL (Hardcoded fallback for rock-solid reliability on Vercel deployment)
+const HARDCODED_PRODUCTION_API = 'https://pharma-complaint-system.onrender.com';
+
+// Construct clean API URL without risk of malformed brackets, duplicate paths, or localhost leakage
+export const getApiEndpoint = (path) => {
+  let envUrl = import.meta.env?.VITE_API_BASE_URL;
+
+  // Use hardcoded production URL if env is missing, empty, or relative
+  if (!envUrl || typeof envUrl !== 'string' || !envUrl.trim() || envUrl.includes('localhost')) {
+    envUrl = HARDCODED_PRODUCTION_API;
+  }
+
+  // Strip trailing slashes and redundant endpoint suffixes
+  let base = envUrl.trim().replace(/\/+$/, '');
   base = base.replace(/\/api$/, '');
   base = base.replace(/\/extract$/, '');
   base = base.replace(/\/complaints$/, '');
-  
+
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${base}/api${cleanPath}`;
 };
@@ -20,11 +28,25 @@ export const extractComplaint = createAsyncThunk(
   async (rawText, { rejectWithValue }) => {
     try {
       const endpoint = getApiEndpoint('/extract');
-      console.log('Dispatching AI extraction request to endpoint:', endpoint);
-      const response = await axios.post(endpoint, { raw_text: rawText });
+      console.log('[AI Extraction] Dispatching request to endpoint:', endpoint);
+      
+      const response = await axios.post(
+        endpoint,
+        { raw_text: rawText },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 45000, // 45s timeout to handle Groq API cold-starts gracefully
+        }
+      );
       return response.data;
     } catch (error) {
-      const msg = error.response?.data?.detail || error.message || 'Failed to extract complaint';
+      console.error('[AI Extraction Error]:', error);
+      let msg = 'Failed to connect to AI Extraction backend server.';
+      if (error.response?.data?.detail) {
+        msg = error.response.data.detail;
+      } else if (error.message) {
+        msg = `Network Error (${error.message}). Please check backend status at https://pharma-complaint-system.onrender.com/health.`;
+      }
       return rejectWithValue(msg);
     }
   }
@@ -35,7 +57,7 @@ export const submitComplaint = createAsyncThunk(
   async (formData, { rejectWithValue }) => {
     try {
       const endpoint = getApiEndpoint('/complaints');
-      const response = await axios.post(endpoint, formData);
+      const response = await axios.post(endpoint, formData, { timeout: 30000 });
       return response.data;
     } catch (error) {
       const msg = error.response?.data?.detail || error.message || 'Failed to submit complaint';
@@ -49,7 +71,7 @@ export const fetchComplaints = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const endpoint = getApiEndpoint('/complaints');
-      const response = await axios.get(endpoint);
+      const response = await axios.get(endpoint, { timeout: 30000 });
       return response.data;
     } catch (error) {
       const msg = error.response?.data?.detail || error.message || 'Failed to fetch complaints';
