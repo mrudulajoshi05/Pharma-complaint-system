@@ -1,8 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-const API_BASE_URL = `${BASE_URL.replace(/\/$/, '')}/api`;
+// Normalize API Base URL to handle trailing slashes, missing /api paths, or default production URL
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://pharma-complaint-system.onrender.com';
+let cleanBase = rawBaseUrl.trim().replace(/\/+$/, '');
+if (!cleanBase.endsWith('/api')) {
+  cleanBase = `${cleanBase}/api`;
+}
+const API_BASE_URL = cleanBase;
 
 export const extractComplaint = createAsyncThunk(
   'complaint/extractComplaint',
