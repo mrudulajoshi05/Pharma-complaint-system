@@ -112,8 +112,9 @@ def health_check():
     }
 
 
-# Endpoints
+# Extract Endpoints (supports both /api/extract and /extract)
 @app.post("/api/extract", response_model=dict, status_code=status.HTTP_200_OK)
+@app.post("/extract", response_model=dict, status_code=status.HTTP_200_OK)
 def extract_complaint(request: ExtractRequest, background_tasks: BackgroundTasks):
     if not request.raw_text or not request.raw_text.strip():
         raise HTTPException(
@@ -132,7 +133,9 @@ def extract_complaint(request: ExtractRequest, background_tasks: BackgroundTasks
     return extracted_data
 
 
+# Complaints Endpoints (supports both /api/complaints and /complaints)
 @app.post("/api/complaints", response_model=ComplaintResponse, status_code=status.HTTP_201_CREATED)
+@app.post("/complaints", response_model=ComplaintResponse, status_code=status.HTTP_201_CREATED)
 def create_complaint(complaint: ComplaintCreate, db: Session = Depends(get_db)):
     db_complaint = ComplaintModel(
         product_name=complaint.product_name,
@@ -151,6 +154,7 @@ def create_complaint(complaint: ComplaintCreate, db: Session = Depends(get_db)):
 
 
 @app.get("/api/complaints", response_model=List[ComplaintResponse], status_code=status.HTTP_200_OK)
+@app.get("/complaints", response_model=List[ComplaintResponse], status_code=status.HTTP_200_OK)
 def get_complaints(db: Session = Depends(get_db)):
     complaints = db.query(ComplaintModel).order_by(ComplaintModel.created_at.desc()).all()
     return complaints

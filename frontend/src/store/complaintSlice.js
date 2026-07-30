@@ -1,19 +1,27 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// Normalize API Base URL to handle trailing slashes, missing /api paths, or default production URL
-const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://pharma-complaint-system.onrender.com';
-let cleanBase = rawBaseUrl.trim().replace(/\/+$/, '');
-if (!cleanBase.endsWith('/api')) {
-  cleanBase = `${cleanBase}/api`;
-}
-const API_BASE_URL = cleanBase;
+// Fail-safe API URL builder supporting both local dev and production Vercel + Render deployment
+const getApiEndpoint = (path) => {
+  const envUrl = (import.meta.env.VITE_API_BASE_URL || 'https://pharma-complaint-system.onrender.com').trim();
+  
+  // Clean trailing slashes and any duplicate /api, /extract, or /complaints if present in env string
+  let base = envUrl.replace(/\/+$/, '');
+  base = base.replace(/\/api$/, '');
+  base = base.replace(/\/extract$/, '');
+  base = base.replace(/\/complaints$/, '');
+  
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${base}/api${cleanPath}`;
+};
 
 export const extractComplaint = createAsyncThunk(
   'complaint/extractComplaint',
   async (rawText, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/extract`, { raw_text: rawText });
+      const endpoint = getApiEndpoint('/extract');
+      console.log('Dispatching AI extraction request to endpoint:', endpoint);
+      const response = await axios.post(endpoint, { raw_text: rawText });
       return response.data;
     } catch (error) {
       const msg = error.response?.data?.detail || error.message || 'Failed to extract complaint';
@@ -26,7 +34,8 @@ export const submitComplaint = createAsyncThunk(
   'complaint/submitComplaint',
   async (formData, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/complaints`, formData);
+      const endpoint = getApiEndpoint('/complaints');
+      const response = await axios.post(endpoint, formData);
       return response.data;
     } catch (error) {
       const msg = error.response?.data?.detail || error.message || 'Failed to submit complaint';
@@ -39,7 +48,8 @@ export const fetchComplaints = createAsyncThunk(
   'complaint/fetchComplaints',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/complaints`);
+      const endpoint = getApiEndpoint('/complaints');
+      const response = await axios.get(endpoint);
       return response.data;
     } catch (error) {
       const msg = error.response?.data?.detail || error.message || 'Failed to fetch complaints';
